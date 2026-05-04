@@ -1,0 +1,16 @@
+diff --git a/node_modules/@wearesage/vue/src/stores/spotify.ts b/node_modules/@wearesage/vue/src/stores/spotify.ts
+index 559c6d0..527b0ec 100644
+--- a/node_modules/@wearesage/vue/src/stores/spotify.ts
++++ b/node_modules/@wearesage/vue/src/stores/spotify.ts
+@@ -152,8 +152,9 @@ export const useSpotify = defineStore("spotify", () => {
+     }
+ 
+     if (accessToken.value) {
+-      getCurrentAnalysis();
+-      if (!analysisData.value) startInterval();
++      void getCurrentAnalysis().then(() => {
++        if (!analysisData.value) startInterval();
++      });
+     }
+   }
+ 
