@@ -1,7 +1,64 @@
+diff --git a/node_modules/@wearesage/vue/src/composables/audio/useEchoNest.ts b/node_modules/@wearesage/vue/src/composables/audio/useEchoNest.ts
+index d5d7e1c..97145cc 100644
+--- a/node_modules/@wearesage/vue/src/composables/audio/useEchoNest.ts
++++ b/node_modules/@wearesage/vue/src/composables/audio/useEchoNest.ts
+@@ -89,21 +89,24 @@ export function useEchoNest(analysisData: ShallowRef<SpotifyAnalysis | null>) {
+   const bump = scaleLinear([60, 120], [0.2, 0.1]);
+ 
+   watchEffect(() => {
++    // When Spotify is paused, freeze motion (otherwise tick defaults and the viz never stops)
++    if (!playing.value) {
++      return;
++    }
++
+     let tick = 0.01;
+ 
+-    if (playing.value) {
+-      const fps = raf.frameRate as number;
+-      const vol = Math.pow(volume.value, 0.75);
+-      const pSegment = activeIntervals.value?.segments?.[2] as number;
+-      const pBeat = activeIntervals.value?.beats?.[2] as number;
+-
+-      if (pSegment && pBeat) {
+-        const iBeat = interpolateBasis([base(fps), base(fps) * vol + bump(fps) * vol, base(fps)]);
+-        const iSegment = interpolateBasis([base(fps), base(fps) * vol + bump(fps) * vol, base(fps)]);
+-        const value = iBeat(pBeat) + iSegment(pSegment);
+-        if (!isNaN(value)) {
+-          tick = value;
+-        }
++    const fps = raf.frameRate as number;
++    const vol = Math.pow(volume.value, 0.75);
++    const pSegment = activeIntervals.value?.segments?.[2] as number;
++    const pBeat = activeIntervals.value?.beats?.[2] as number;
++
++    if (pSegment && pBeat) {
++      const iBeat = interpolateBasis([base(fps), base(fps) * vol + bump(fps) * vol, base(fps)]);
++      const iSegment = interpolateBasis([base(fps), base(fps) * vol + bump(fps) * vol, base(fps)]);
++      const value = iBeat(pBeat) + iSegment(pSegment);
++      if (!isNaN(value)) {
++        tick = value;
+       }
+     }
+ 
 diff --git a/node_modules/@wearesage/vue/src/stores/spotify.ts b/node_modules/@wearesage/vue/src/stores/spotify.ts
-index 559c6d0..527b0ec 100644
+index 559c6d0..06a30bc 100644
 --- a/node_modules/@wearesage/vue/src/stores/spotify.ts
 +++ b/node_modules/@wearesage/vue/src/stores/spotify.ts
+@@ -135,10 +135,10 @@ export const useSpotify = defineStore("spotify", () => {
+ 
+   function startInterval() {
+     stopInterval();
+-    fetchInterval.value = setInterval(async () => {
+-      await getCurrentAnalysis();
+-      if (analysisData.value) stopInterval();
+-    }, 5000);
++    // Keep polling while linked: play/pause/seek only update when we refetch (interval used to stop after first success).
++    fetchInterval.value = setInterval(() => {
++      void getCurrentAnalysis();
++    }, 2500);
+   }
+ 
+   function initialize() {
 @@ -152,8 +152,9 @@ export const useSpotify = defineStore("spotify", () => {
      }
  
@@ -9,7 +66,7 @@ index 559c6d0..527b0ec 100644
 -      getCurrentAnalysis();
 -      if (!analysisData.value) startInterval();
 +      void getCurrentAnalysis().then(() => {
-+        if (!analysisData.value) startInterval();
++        startInterval();
 +      });
      }
    }
