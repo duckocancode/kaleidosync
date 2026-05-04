@@ -107,38 +107,47 @@ export const routes: SageRoute[] = [
 
 export const routeMap = new Map(routes.map(route => [route.path, route]))
 
+/** /visualizer/ → /visualizer so static routes match on hosts that add trailing slashes */
+export function normalizeRoutePath(path: string): string {
+  if (!path) return "/";
+  if (path === "/") return "/";
+  return path.replace(/\/+$/, "") || "/";
+}
+
 // Route matching helper
 export function matchRoute(path: string): SageRoute | null {
+  const p = normalizeRoutePath(path);
   // First try exact match
-  const exact = routeMap.get(path)
-  if (exact) return exact
-  
+  const exact = routeMap.get(p);
+  if (exact) return exact;
+
   // Try pattern matching for dynamic routes
   for (const route of routes) {
     if (route.params.length > 0) {
       const pattern = route.path.replace(/:(\w+)(\*)?/g, (_, param, catchAll) => {
-        return catchAll ? '(.*)' : '([^/]+)'
-      })
-      const regex = new RegExp('^' + pattern + '$')
-      if (regex.test(path)) {
-        return route
+        return catchAll ? "(.*)" : "([^/]+)";
+      });
+      const regex = new RegExp("^" + pattern + "$");
+      if (regex.test(p)) {
+        return route;
       }
     }
   }
-  
-  return null
+
+  return null;
 }
 
 // Extract params from path
 export function extractParams(routePath: string, actualPath: string): Record<string, string> {
-  const route = routeMap.get(routePath) || matchRoute(actualPath)
-  if (!route || route.params.length === 0) return {}
-  
+  const route = routeMap.get(routePath) || matchRoute(actualPath);
+  if (!route || route.params.length === 0) return {};
+
+  const ap = normalizeRoutePath(actualPath);
   const pattern = route.path.replace(/:(\w+)(\*)?/g, (_, param, catchAll) => {
-    return `(${catchAll ? '.*' : '[^/]+'})`
-  })
-  const regex = new RegExp('^' + pattern + '$')
-  const matches = actualPath.match(regex)
+    return `(${catchAll ? ".*" : "[^/]+"})`;
+  });
+  const regex = new RegExp("^" + pattern + "$");
+  const matches = ap.match(regex);
   
   if (!matches) return {}
   
